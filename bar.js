@@ -99,8 +99,6 @@ function display(query)
   var newQuery = oldQuery+"/@"+this.value;
   queryEl.value = newQuery;
   evaluateQuery();
-  
-
 }
 
 var handleMouseMove = function(e) {
@@ -149,6 +147,35 @@ document.addEventListener('DOMContentLoaded', function(){
   })
 })
 
+document.getElementById("relative").onclick=relative;
+document.getElementById("absolute").onclick=absolute;
+document.getElementById("block").onclick=block;
+
+function relative(){
+  var request = {
+    'type':'option',
+    'value': 'relative'
+  }
+  chrome.extension.sendMessage(request);
+}
+
+function absolute(){
+  var request = {
+    'type':'option',
+    'value': 'absolute'
+  }
+  chrome.extension.sendMessage(request);
+}
+
+function block(){
+  var request = {
+    'type':'option',
+    'value': 'block'
+  }
+  chrome.extension.sendMessage(request);
+}
+
+
 queryEl.addEventListener('keyup', evaluateQuery);
 queryEl.addEventListener('mouseup', evaluateQuery);
 
@@ -165,3 +192,6 @@ var request = {
   'height': document.documentElement.offsetHeight
 };
 chrome.extension.sendMessage(request);
+
+var a = document.getElementsByName("choice");
+

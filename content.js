@@ -91,8 +91,8 @@ function filter(string){
 }
   res = filter(res);
   res = res.split(/-|\s|_/);
-  //console.log(res);
-  var flag = 0;
+  res = res.filter(Boolean);
+  
   for(var i=0;i<res.length;i++){
     if(dictionary.check(res[i])===false){
       return false;
@@ -117,7 +117,8 @@ xh.makeQueryForElement = function(el) {
       if(xh.tokenize(el.id)){
         component_ += '[@id=\'' + el.id + '\']';  
       }
-      component += '[@id=\'' + el.id + '\']';
+      if(classFlag>1)
+        component += '[@id=\'' + el.id + '\']';
     } else if ((classFlag>1) && (el.className)) {
       component += '[@class=\'' + el.className + '\']';
       component_ += '[@class=\'' + el.className + '\']';
@@ -138,6 +139,8 @@ xh.makeQueryForElement = function(el) {
     query = '/' + component + query;
     
     if( (flag==1) && (component!=component_) ){
+      console.log("component: \n"+component+'\n\n');
+      console.log("component_: \n"+component_+'\n\n');
       bq = '/'+blockQuery;
       flag = 2;
     }
@@ -145,7 +148,7 @@ xh.makeQueryForElement = function(el) {
 
   }
   console.log(bq+'\n');
-  return query;
+  return [query, bq];
 };
 
 xh.highlightNodes = function(nodes) {
@@ -258,7 +261,7 @@ xh.Bar.prototype.boundKeyDown_ = null;
 
 xh.Bar.prototype.updateQueryAndBar_ = function(el) {
   xh.clearHighlights();
-  this.query_ = el ? xh.makeQueryForElement(el) : '';
+  this.query_ = el ? xh.makeQueryForElement(el)[0] : '';
   this.updateBar_(true);
 };
 
@@ -286,7 +289,7 @@ xh.Bar.prototype.attributes_ = function(){
     for(var it = 0; it<res.attributes.length;it++){
       var att = res.attributes.item(it).name;
       var value = res.attributes.item(it).nodeValue;
-      if((att!=='class') && (att!=='style')){
+      if((attributeList.indexOf(att)==-1) && (att!=='class') && (att!=='style')){
         attributeList.push(att);
         valueList.push(value);
       }
@@ -337,9 +340,14 @@ xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
     this.hideBar_();
     window.focus();
     /* Print up whatever is sent */
-  } else if(request['type'] === 'print')
-      this.attributes_();
-
+  } else if(request['type'] === 'option'){
+      if(request['value']==='block')
+        console.log("block");
+      else if(request['value']==='absolute')
+        console.log("absolute");
+      else
+        console.log("relative");
+    }
 };
 
 xh.Bar.prototype.mouseMove_ = function(e) {
