@@ -18,21 +18,8 @@
  * @author opensource@google.com
  * @license Apache License, Version 2.0.
  */
-  // var n = query.lastIndexOf('[');
-  // query = query.substring(0,n);
-  // var idIndex = query.lastIndexOf("@id");
-  // var shortened = null;
-  // if(idIndex!=-1){
-  //   while(query[idIndex]!='/'){
-  //     if(query[idIndex]=='/')
-  //       break;
-  //     idIndex--;
-  //   }
-  //   shortened = query.substring(idIndex, query.length);
-  //   shortened = '/'+ shortened;
-  // }
-  // //query = shortened;
-  
+
+
 'use strict';
 
 // Extension namespace.
@@ -77,10 +64,18 @@ xh.getElementIndex = function(el) {
   return 0;
 };
 
-var dictionary = new Typo("en_US");
 
+
+/* Utility function to tokenize all id names 
+   Tokenizes the id string bassed on hyphens, underscores and camelCase. 
+   Removes all numbers from alphanumeric strings. 
+   If the resulting tokens are all dictionary words, function concludes that 
+   the id isn't unique and returns false
+   Alternative way to generate XPaths relative to block if block XPath not given!
+*/
+var dictionary = new Typo("en_US");
 xh.tokenize = function(str) {
-  //var res = str.split(/-|\s|_/);
+  
   var res = str
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/([A-Z])([a-z])/g, ' $1$2')
@@ -94,11 +89,11 @@ function filter(string){
   res = res.filter(Boolean);
   
   for(var i=0;i<res.length;i++){
-    if(dictionary.check(res[i])===false){
-      return false;
+    if(dictionary.check(res[i])===true){
+      return true;
     }
   }
-  return true;
+  return false;
 }
 
 
@@ -108,6 +103,8 @@ xh.makeQueryForElement = function(el) {
   var blockQuery = '';
   var bq = '';
   var flag = 1;
+
+  /* Do not want class attribute for final element.  */
   var classFlag = 1;
   for (; el && el.nodeType === Node.ELEMENT_NODE; el = el.parentNode) {
     var component = el.tagName.toLowerCase();
@@ -117,40 +114,85 @@ xh.makeQueryForElement = function(el) {
       if(xh.tokenize(el.id)){
         component_ += '[@id=\'' + el.id + '\']';  
       }
-      if(classFlag>1)
-        component += '[@id=\'' + el.id + '\']';
+     component += '[@id=\'' + el.id + '\']';
     } else if ((classFlag>1) && (el.className)) {
+    //} else if (el.className) {
       component += '[@class=\'' + el.className + '\']';
-      component_ += '[@class=\'' + el.className + '\']';
+      if(classFlag>1)
+        component_ += '[@class=\'' + el.className + '\']';
     }
     if (index >= 1) {
-      //console.log(el.tagName+index);
       component += '[' + index + ']';
-      //console.log(component);
-      if((classFlag<=2) || ((el.tagName.toLowerCase()=='li') || (el.tagName.toLowerCase()=='ul')))
+      //if((classFlag<=2) || ((el.tagName.toLowerCase()=='li') || (el.tagName.toLowerCase()=='ul')))
         component_ += '[' + index + ']';
-    }
-    // If the last tag is an img, the user probably wants img/@src.
-    if (query === '' && el.tagName.toLowerCase() === 'img') {
-      component += '/@src';
-      component_ += '/@src';
     }
     classFlag++;
     query = '/' + component + query;
-    
-    if( (flag==1) && (component!=component_) ){
-      console.log("component: \n"+component+'\n\n');
-      console.log("component_: \n"+component_+'\n\n');
+     if( (flag==1) && (component!=component_) ){
       bq = '/'+blockQuery;
       flag = 2;
     }
     blockQuery = '/' + component_ + blockQuery;
-
   }
-  console.log(bq+'\n');
-  return [query, bq];
+  return query;
 };
 
+xh.absoluteToRelative = function(query, result) {
+
+/* Utility function to convert absolute XPath to relative XPath  
+   The result of both the relative and absollute XPath must be same
+*/
+  var res = [];
+  var count = '';
+  /* Flag value to determine after how many elements should we 
+     start checking if the results of the absolute and generated 
+     XPath are similar. 
+  */ 
+  var flag = 4;
+  var temp = query;
+  var reduced = '';
+  while(1) {
+    var last = temp.lastIndexOf("/");
+    reduced = query.substring(last, query.length);
+    temp = query.substring(0,last);
+    reduced = '/'+reduced;
+    if(count>flag)
+      res = xh.evaluateQuery(reduced, 2);
+    if((res[0]==result[0]) && (count>flag))
+      return reduced;
+    count++;
+  }
+};
+
+
+xh.relativeToAbsolute = function(query) {
+
+/* Converts a relative XPath to absolute by evaluating 
+   the given XPath and querying for the obtained result. 
+*/
+  xh.evaluateQuery(query, 1);
+  var node = document.getElementsByClassName('mark-node')[0];
+  xh.clearMarkings();
+  var blockAbsolute = xh.makeQueryForElement(node);
+  return blockAbsolute;
+}
+
+/* Utility functions for marking the nodes without highlighting them */
+xh.markNodes = function(nodes){
+  for (var i = 0, l = nodes.length; i < l; i++) {
+    nodes[i].className += ' mark-node';
+  }
+}
+
+xh.clearMarkings = function() {
+  var els = document.getElementsByClassName('mark-node');
+  // Note: getElementsByClassName() returns a live NodeList.
+  while (els.length) {
+    els[0].className = els[0].className.replace(' mark-node', '');
+  }
+};
+
+/* Highlighting functions */
 xh.highlightNodes = function(nodes) {
   for (var i = 0, l = nodes.length; i < l; i++) {
     nodes[i].className += ' xh-highlight';
@@ -167,12 +209,13 @@ xh.clearHighlights = function() {
 
 // Returns [values, nodeCount]. Highlights result nodes, if applicable. Assumes
 // no nodes are currently highlighted.
-xh.evaluateQuery = function(query) {
+xh.evaluateQuery = function(query,mode) {
+console.time("concatenation");
+  mode = typeof mode !== 'undefined' ? mode:0;
   var xpathResult = null;
   var str = '';
   var nodeCount = 0;
   var nodesToHighlight = [];
-
   try {
     xpathResult = document.evaluate(query, document, null,
                                     XPathResult.ANY_TYPE, null);
@@ -215,15 +258,23 @@ xh.evaluateQuery = function(query) {
     str = '[INTERNAL ERROR]';
     nodeCount = 0;
   }
-  xh.highlightNodes(nodesToHighlight);
+  if(mode==0)
+    xh.highlightNodes(nodesToHighlight);
+  // When highlighting is not required, use mode = 1
+  else if(mode==1)
+    xh.markNodes(nodesToHighlight);
   return [str, nodeCount];
 };
+
+
 
 xh.bind = function(object, method) {
   return function() {
     return method.apply(object, arguments);
   };
 };
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // xh.Bar class definition
 
@@ -259,9 +310,20 @@ xh.Bar.prototype.boundHandleRequest_ = null;
 xh.Bar.prototype.boundMouseMove_ = null;
 xh.Bar.prototype.boundKeyDown_ = null;
 
-xh.Bar.prototype.updateQueryAndBar_ = function(el) {
+
+xh.Bar.prototype.updateQueryAndBar_  = function(el, mode) {
   xh.clearHighlights();
-  this.query_ = el ? xh.makeQueryForElement(el)[0] : '';
+
+  /* Generate the absolute and relative query */
+  this.absoluteQuery_ = el ? xh.makeQueryForElement(el) : '';
+  this.results_ = this.absoluteQuery_ ? xh.evaluateQuery(this.absoluteQuery_) : ['', 0];
+  this.optimalQuery_ = xh.absoluteToRelative(this.absoluteQuery_, this.results_);
+   
+  // var block = "/html/body[@class='browse new-branding']/div[@class='newMenu  fkart fksk-body line  ']/div[@id='fk-mainbody-id']/div[@class='grid-expansion fk-content fksk-content enable-compare']/div[3]/div[@id='browse']/div[@class='line ']/div[@id='sticky-referrer']/div[@class='gu-flexi-grid-20-16'][2]/div[@class='gd-row']/div[@id='browse-results-area']/div[@class='results grid js-product-ad-count-detection']/div[@id='plWrap']/div/div[@id='products']/div[@class='old-grid']/div[@class='gd-row browse-grid-row'][1]/div[@class='gd-col gu3']";
+  // var block1 = "/html/body[@class='listingPage']/div[@id='content_wrapper']/div[@class='pageWrapper clearfix product-cat-deal']/div[@class='rightWrapper']/div[@id='products-main4']/div[@class='product_grid_row'][1]/div[@id='629650059919']"
+  // if(this.query_.indexOf(block)!=-1)
+  //   this.query_ = this.generateRelativeQuery_(this.query_);
+  this.query_ = mode==1 ? this.optimalQuery_ : this.absoluteQuery_;
   this.updateBar_(true);
 };
 
@@ -273,9 +335,36 @@ xh.Bar.prototype.updateBar_ = function(update_query) {
     'results': this.results_
   };
   chrome.runtime.sendMessage(request);
+
+  /* Display attributes of the nodeElement */
   this.attributes_();
 };
 
+/* Generate relative query based on the block XPath received from API */
+xh.Bar.prototype.generateRelativeQuery_ = function(query){
+  var block = "/html/body[@class='browse new-branding']/div[@class='newMenu  fkart fksk-body line  ']/div[@id='fk-mainbody-id']/div[@class='grid-expansion fk-content fksk-content enable-compare']/div[3]/div[@id='browse']/div[@class='line ']/div[@id='sticky-referrer']/div[@class='gu-flexi-grid-20-16'][2]/div[@class='gd-row']/div[@id='browse-results-area']/div[@class='results grid js-product-ad-count-detection']/div[@id='plWrap']/div/div[@id='products']/div[@class='old-grid']/div[@class='gd-row browse-grid-row'][1]/div[@class='gd-col gu3']";
+  var block1 = "/html/body[@class='listingPage']/div[@id='content_wrapper']/div[@class='pageWrapper clearfix product-cat-deal']/div[@class='rightWrapper']/div[@id='products-main4']/div[@class='product_grid_row'][1]/div"
+  var adsads = "/html/body[@class='listingPage']/div[@id='content_wrapper']/div[@class='pageWrapper clearfix product-cat-deal']/div[@class='rightWrapper']/div[@id='products-main4']/div[@class='product_grid_row'][1]/div[@id='1288231995']/div[@class='product_grid_box']/div[@class='productWrapper']/div[@class='hoverProductWrapper product-txtWrapper  ']/a[@id='prodDetails']/div[@class='product-price']/div[1]"
+  var relative = '';
+  xh.evaluateQuery(block, 1);
+  var node = document.getElementsByClassName('mark-node')[0];
+  xh.clearMarkings();
+  var blockAbsolute = xh.makeQueryForElement(node);
+  
+  var blockLength = blockAbsolute.length; 
+  relative = '/'+ query.substr(blockLength, query.length);
+  var results = xh.evaluateQuery(relative);
+  return relative; 
+  // var request = {
+  //   'type': 'relative',
+  //   'query': relative,
+  //   'results': results
+  // }
+  // chrome.runtime.sendMessage(request);
+  // this.attributes_();
+}
+
+/* Sends all the attributes for the currently selected node to the extension */
 xh.Bar.prototype.attributes_ = function(){
   var xpe = new XPathEvaluator();
   var aNode = document;
@@ -323,7 +412,6 @@ xh.Bar.prototype.hideBar_ = function() {
 xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
   if (request['type'] === 'height' && this.barHeightInPx_ === 0) {
     this.barHeightInPx_ = request['height'];
-    //console.log(typeof request['height']);
     // Now that we've saved the bar's height, remove it from the DOM and make it
     // 'visible'.
     document.body.removeChild(this.barFrame_);
@@ -339,15 +427,30 @@ xh.Bar.prototype.handleRequest_ = function(request, sender, callback) {
   } else if (request['type'] === 'hideBar') {
     this.hideBar_();
     window.focus();
-    /* Print up whatever is sent */
+
+    /* Select relative or absolute query */
   } else if(request['type'] === 'option'){
-      if(request['value']==='block')
-        console.log("block");
-      else if(request['value']==='absolute')
-        console.log("absolute");
-      else
-        console.log("relative");
+      if(request['value']==='relative'){   
+        var currQuery = request['query'];
+        // Current query in query box is an absolute query
+        if(currQuery[1]!='/'){ 
+          this.results_ = xh.evaluateQuery(currQuery,2);
+          this.optimalQuery_ = xh.absoluteToRelative(currQuery, this.results_);
+          this.query_ = this.optimalQuery_;
+          this.updateBar_(true);
+      }
     }
+      else if(request['value']==='absolute'){
+        var currQuery = request['query'];
+
+        // Current query in the box is relative query
+        if(currQuery[1]=='/'){
+          this.absoluteQuery_ = xh.relativeToAbsolute(currQuery);
+          this.query_ = this.absoluteQuery_;
+          this.updateBar_(true);
+      }
+    }
+  }
 };
 
 xh.Bar.prototype.mouseMove_ = function(e) {
@@ -356,7 +459,7 @@ xh.Bar.prototype.mouseMove_ = function(e) {
   }
   this.currEl_ = e.toElement;
   if (e.shiftKey) {
-    this.updateQueryAndBar_(this.currEl_);
+    this.updateQueryAndBar_(this.currEl_, 1);
   }
 };
 
@@ -382,7 +485,7 @@ xh.Bar.prototype.keyDown_ = function(e) {
   // Also, note that checking e.shiftKey wouldn't work here, since Shift is the
   // key that triggered this event.
   if (this.active_ && e.keyCode === xh.SHIFT_KEYCODE && !e.ctrlKey) {
-    this.updateQueryAndBar_(this.currEl_);
+    this.updateQueryAndBar_(this.currEl_, 1);
   }
 };
 
@@ -396,7 +499,5 @@ if (window['xhBarInstance']) {
 //if (location.href.indexOf('acid3.acidtests.org') === -1) {
   window['xhBarInstance'] = new xh.Bar();
 //}
-
-
 
 

@@ -6,18 +6,25 @@
   </head>
   <body>
     <div id="row">
+      <div id="crawl-type">
+          <input type="radio" name="crawl-type" value="listing" id="listing" checked > listing
+          <input type="radio" name="crawl-type" value="product" id="product"> product
+        </div>
+        <br>
       <div id="query-box">
+        
         <div class="box-name">Query:</div>
         <textarea id="query"></textarea>
+      
       </div>
       <div id="results-box">
         <div class="box-name">Results (<span id="node-count"></span>):</div>
         <textarea id="results" readonly="readonly"></textarea>
       </div>
+
       <div id="options">
-          <input type="radio" name="choice" value="absolute" id="absolute" checked > absolute
-          <input type="radio" name="choice" value="block" id="block">block
-          <input type="radio" name="choice" value="relative" id="relative"> relative
+          <input type="radio" name="choice" value="relative" id="relative" checked > relative
+          <input type="radio" name="choice" value="absolute" id="absolute"> absolute
           </div>
           <br>
     </div>

@@ -47,7 +47,7 @@ var evaluateQuery = function() {
 
 var handleRequest = function(request, sender, callback) {
   // Note: Setting textarea's value and text node's nodeValue is XSS-safe.
-  if (request['type'] === 'update') {
+  if ((request['type'] === 'update') || (request['type'] === 'relative')) {
     if (request['query'] !== null) {
       queryEl.value = request['query'];
     }
@@ -57,6 +57,7 @@ var handleRequest = function(request, sender, callback) {
 
     }
   }
+  // Listen for message sending attribute list of selected node
   if(request['type'] === 'attributes'){
     var data = request['data'];
     var values = request['values']
@@ -64,19 +65,24 @@ var handleRequest = function(request, sender, callback) {
 
     attributes(data, values, query);
   }
+
+  // Listen for email id of user logged into chrome
   if(request['type']=='email'){
     email = request['email'];
   }
+
 };
 
 function attributes(data, values, query) {
   var counter = 0;
   
+  // Refresh   
   var myNode = document.getElementById("disp-attr");
   while (myNode.firstChild) {
     myNode.removeChild(myNode.firstChild);
 }
 
+  // Read attribute list and display the radio buttons
   while(counter<data.length){
     var label = document.createElement("label")
     var radioElement = document.createElement("input");
@@ -84,6 +90,8 @@ function attributes(data, values, query) {
     radioElement.type="radio";
     radioElement.checked=false;
     radioElement.name = "attributes";
+
+    /* On clicking radio button, invoke display function */
     radioElement.onclick=display;
     radioElement.setAttribute("og-query",query);
     label.appendChild(radioElement);
@@ -95,9 +103,13 @@ function attributes(data, values, query) {
 
 function display(query)
 {
+
+  /* Update the query text area */
   var oldQuery = this.getAttribute("og-query");
   var newQuery = oldQuery+"/@"+this.value;
   queryEl.value = newQuery;
+  
+  /* Update the result section also accordingly */ 
   evaluateQuery();
 }
 
@@ -117,6 +129,8 @@ var handleMouseMove = function(e) {
 };
 
 
+
+/* Function to add additional submit buttons */
 function add() {
   var node = document.createElement("input");
   var btName = document.getElementById("submit");
@@ -139,6 +153,8 @@ var handleKeyDown = function(e) {
   }
 };
 
+
+/* Listens for enter key pressed after typing something in the create new field text box */
 document.addEventListener('DOMContentLoaded', function(){
   document.querySelector('#submit').addEventListener(
     'keydown', function(e){
@@ -147,30 +163,54 @@ document.addEventListener('DOMContentLoaded', function(){
   })
 })
 
+/* Change color based on listing page or product page */
+document.getElementById("listing").onclick=listing;
+document.getElementById("product").onclick=product;
+
+function listing() {
+  document.body.style.background = "#222";
+}
+
+function product(){
+  document.body.style.background = "#223939";
+}
+
 document.getElementById("relative").onclick=relative;
 document.getElementById("absolute").onclick=absolute;
-document.getElementById("block").onclick=block;
+
 
 function relative(){
+  var last = queryEl.value.lastIndexOf("/");
+  var query = '';
+  if(last!=-1){
+    if(queryEl.value[last+1]=='@')
+      query = queryEl.value.substring(0,last);
+    else
+      query = queryEl.value;
+  }
+  console.log("relatve"+query+'\n\n')
   var request = {
     'type':'option',
-    'value': 'relative'
+    'value': 'relative',
+    'query': query
   }
   chrome.extension.sendMessage(request);
 }
 
 function absolute(){
-  var request = {
-    'type':'option',
-    'value': 'absolute'
+  var last = queryEl.value.lastIndexOf("/");
+  var query = '';
+  if(last!=-1){
+    if(queryEl.value[last+1]=='@')
+      query = queryEl.value.substring(0,last);
+    else
+      query = queryEl.value;
   }
-  chrome.extension.sendMessage(request);
-}
-
-function block(){
+  console.log("absolute"+query+'\n\n')
   var request = {
     'type':'option',
-    'value': 'block'
+    'value': 'absolute',
+    'query': query
   }
   chrome.extension.sendMessage(request);
 }
@@ -192,6 +232,3 @@ var request = {
   'height': document.documentElement.offsetHeight
 };
 chrome.extension.sendMessage(request);
-
-var a = document.getElementsByName("choice");
-

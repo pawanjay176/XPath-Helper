@@ -35,7 +35,7 @@ div {
 }
 
 textarea {
-  background: #222;
+  background: #000;
   border: 1px solid #666;
   box-sizing: border-box;
   color: #fff;
@@ -75,6 +75,13 @@ textarea {
   padding-right: 10px;
   width: 60%;
 }
+
+/*#crawl-type {
+  margin-left: auto;
+  margin-right: auto;
+  width: 9%;
+}
+*/
 
 #results-box {
   float: left;

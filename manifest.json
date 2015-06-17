@@ -4,27 +4,37 @@
   "version": "1.0.13",
   "description": "Extract, edit, and evaluate XPath queries with ease.",
   "background": {
-    "scripts": ["background.js"]
+    "page": "background.html"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "css": ["content.css"],
-      "js": ["lib/typo/typo.js","content.js"]
+      "js": ["lib/typo/typo.js","jquery-1.11.3.min.js","content.js"]
     }
   ],
-  "permissions": ["tabs", "identity", "identity.email"],
+  "permissions": ["tabs", "identity", "identity.email","https://docs.google.com/feeds/*",
+  "https://www.google.com/accounts/OAuthGetRequestToken",
+  "https://www.google.com/accounts/OAuthAuthorizeToken",
+  "https://www.google.com/accounts/OAuthGetAccessToken"],
+
   "icons": {
     "32": "static/icon32.png",
     "48": "static/icon48.png",
     "128": "static/icon128.png"
   },
   "web_accessible_resources": [
+    "jquery-1.11.3.min.map",
+    "jquery-1.11.3.min.js",
     "lib/typo/dictionaries/en_US/en_US.aff",
     "lib/typo/dictionaries/en_US/en_US.dic",
     "lib/typo/typo.js",
     "bar.css",
     "bar.html",
-    "bar.js"
+    "bar.js",
+    "chrome_ex_oauthsimple.html",
+    "chrome_ex_oauthsimple.js",
+    "chrome_ex_oauth.js",
+    "onload.js"
   ]
 }
